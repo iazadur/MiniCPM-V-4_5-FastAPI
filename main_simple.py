@@ -11,14 +11,15 @@ import uuid
 from typing import Optional
 
 # Define request models
-class PromptRequest(BaseModel):
-    prompt: str
+class ChatRequest(BaseModel):
+    message: str
     max_new_tokens: int = 200
+    temperature: float = 0.7
 
 # Initialize FastAPI
 app = FastAPI(
-    title="MiniCPM-V-4_5 API with Image Upload",
-    description="A FastAPI application for MiniCPM-V-4_5 with image upload and analysis capabilities",
+    title="MiniCPM-V-4_5 Chat & OCR API",
+    description="MiniCPM-V-4_5 API with Text Chat and Image OCR capabilities",
     version="1.0.0"
 )
 
@@ -38,12 +39,12 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 @app.get("/")
 async def root():
     return {
-        "message": "MiniCPM-V-4_5 API with Image Upload",
+        "message": "MiniCPM-V-4_5 Chat & OCR API",
         "status": "running",
         "endpoints": {
-            "text_generation": "/generate",
+            "text_chat": "/chat",
+            "image_ocr": "/ocr",
             "image_upload": "/upload-image",
-            "image_analysis": "/analyze-image",
             "docs": "/docs"
         }
     }
@@ -56,13 +57,14 @@ async def health_check():
         "device": "not_loaded"
     }
 
-@app.post("/generate")
-async def generate_text(req: PromptRequest):
-    """Generate text using MiniCPM-V-4_5"""
+@app.post("/chat")
+async def chat_with_model(req: ChatRequest):
+    """Chat with MiniCPM-V-4_5 for text conversation"""
     return {
-        "prompt": req.prompt,
-        "response": f"This is a demo response for: {req.prompt}",
+        "message": req.message,
+        "response": f"Hello! I'm MiniCPM-V-4_5. You said: '{req.message}'. This is a demo response - the actual model is not loaded yet.",
         "max_new_tokens": req.max_new_tokens,
+        "temperature": req.temperature,
         "note": "Model not loaded - this is a demo response"
     }
 
@@ -104,13 +106,13 @@ async def upload_image(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Image upload failed: {str(e)}")
 
-@app.post("/analyze-image")
-async def analyze_image(
+@app.post("/ocr")
+async def extract_text_from_image(
     file: UploadFile = File(...),
-    prompt: str = Form("Describe this image in detail"),
-    max_new_tokens: int = Form(200)
+    prompt: str = Form("Extract all text from this image. Provide the text content clearly and accurately."),
+    max_new_tokens: int = Form(500)
 ):
-    """Analyze an uploaded image with MiniCPM-V-4_5"""
+    """Extract text from uploaded image using MiniCPM-V-4_5 OCR capabilities"""
     try:
         # Validate file type
         if not file.content_type.startswith("image/"):
@@ -122,7 +124,7 @@ async def analyze_image(
         
         return {
             "prompt": prompt,
-            "response": f"This is a demo analysis for the image. The prompt was: {prompt}",
+            "extracted_text": f"Demo OCR result: This image contains text that would be extracted by MiniCPM-V-4_5. Original prompt: {prompt}",
             "max_new_tokens": max_new_tokens,
             "image_info": {
                 "filename": file.filename,
@@ -130,10 +132,11 @@ async def analyze_image(
                 "format": image.format,
                 "dimensions": f"{image.width}x{image.height}"
             },
+            "ocr_confidence": "demo",
             "note": "Model not loaded - this is a demo response"
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Image analysis failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"OCR failed: {str(e)}")
 
 @app.get("/list-uploads")
 async def list_uploads():

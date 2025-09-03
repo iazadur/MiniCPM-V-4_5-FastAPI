@@ -45,15 +45,15 @@ A complete FastAPI application that serves the MiniCPM-V-4_5 model with text cha
 
 ### Endpoints
 
-| Method   | Endpoint                    | Description                       |
-| -------- | --------------------------- | --------------------------------- |
-| `GET`    | `/`                         | API information                   |
-| `GET`    | `/health`                   | Health check                      |
-| `POST`   | `/chat`                     | Text chat with MiniCPM-V-4_5      |
-| `POST`   | `/ocr`                      | Extract text from image (OCR)     |
-| `POST`   | `/upload-image`             | Upload image                      |
-| `GET`    | `/list-uploads`             | List all uploaded images          |
-| `DELETE` | `/delete-upload/{filename}` | Delete uploaded image             |
+| Method   | Endpoint                    | Description                   |
+| -------- | --------------------------- | ----------------------------- |
+| `GET`    | `/`                         | API information               |
+| `GET`    | `/health`                   | Health check                  |
+| `POST`   | `/chat`                     | Text chat with MiniCPM-V-4_5  |
+| `POST`   | `/ocr`                      | Extract text from image (OCR) |
+| `POST`   | `/upload-image`             | Upload image                  |
+| `GET`    | `/list-uploads`             | List all uploaded images      |
+| `DELETE` | `/delete-upload/{filename}` | Delete uploaded image         |
 
 ## 📝 Usage Examples
 
