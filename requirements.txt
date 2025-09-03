@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+modelscope
+torch
+torchvision
+transformers
+python-multipart
+pillow
+aiofiles

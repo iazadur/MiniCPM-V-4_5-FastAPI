@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiniCPM-V-4_5 Image Upload Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .image-preview {
+            max-width: 300px;
+            max-height: 300px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 MiniCPM-V-4_5 API Test</h1>
+        
+        <!-- Text Generation Section -->
+        <div class="section">
+            <h2>📝 Text Generation</h2>
+            <div class="form-group">
+                <label for="textPrompt">Enter your prompt:</label>
+                <textarea id="textPrompt" rows="3" placeholder="Write a short story about a cat..."></textarea>
+            </div>
+            <div class="form-group">
+                <label for="maxTokens">Max tokens:</label>
+                <input type="number" id="maxTokens" value="200" min="1" max="1000">
+            </div>
+            <button onclick="generateText()">Generate Text</button>
+            <div id="textResult" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- Image Upload Section -->
+        <div class="section">
+            <h2>📸 Image Upload</h2>
+            <div class="form-group">
+                <label for="imageFile">Select an image:</label>
+                <input type="file" id="imageFile" accept="image/*" onchange="previewImage()">
+            </div>
+            <div id="imagePreview"></div>
+            <button onclick="uploadImage()">Upload Image</button>
+            <div id="uploadResult" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- Image Analysis Section -->
+        <div class="section">
+            <h2>🔍 Image Analysis</h2>
+            <div class="form-group">
+                <label for="analysisPrompt">Analysis prompt:</label>
+                <textarea id="analysisPrompt" rows="2" placeholder="Describe this image in detail..."></textarea>
+            </div>
+            <div class="form-group">
+                <label for="analysisTokens">Max tokens:</label>
+                <input type="number" id="analysisTokens" value="200" min="1" max="1000">
+            </div>
+            <button onclick="analyzeImage()">Analyze Image</button>
+            <div id="analysisResult" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- Uploaded Images List -->
+        <div class="section">
+            <h2>📁 Uploaded Images</h2>
+            <button onclick="listUploads()">Refresh List</button>
+            <div id="uploadsList" class="result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:8000';
+        let uploadedFilename = null;
+
+        function showResult(elementId, content, isError = false) {
+            const element = document.getElementById(elementId);
+            element.textContent = content;
+            element.className = `result ${isError ? 'error' : 'success'}`;
+            element.style.display = 'block';
+        }
+
+        function previewImage() {
+            const file = document.getElementById('imageFile').files[0];
+            const preview = document.getElementById('imagePreview');
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.innerHTML = `<img src="${e.target.result}" class="image-preview" alt="Preview">`;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                preview.innerHTML = '';
+            }
+        }
+
+        async function generateText() {
+            const prompt = document.getElementById('textPrompt').value;
+            const maxTokens = document.getElementById('maxTokens').value;
+
+            if (!prompt.trim()) {
+                showResult('textResult', 'Please enter a prompt', true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        max_new_tokens: parseInt(maxTokens)
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('textResult', `Prompt: ${data.prompt}\n\nResponse: ${data.response}`);
+                } else {
+                    showResult('textResult', `Error: ${data.detail}`, true);
+                }
+            } catch (error) {
+                showResult('textResult', `Network error: ${error.message}`, true);
+            }
+        }
+
+        async function uploadImage() {
+            const fileInput = document.getElementById('imageFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                showResult('uploadResult', 'Please select an image file', true);
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${API_BASE}/upload-image`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    uploadedFilename = data.filename;
+                    showResult('uploadResult', `✅ Image uploaded successfully!\nFilename: ${data.filename}\nSize: ${data.file_size} bytes\nDimensions: ${data.image_info.width}x${data.image_info.height}`);
+                } else {
+                    showResult('uploadResult', `Error: ${data.detail}`, true);
+                }
+            } catch (error) {
+                showResult('uploadResult', `Network error: ${error.message}`, true);
+            }
+        }
+
+        async function analyzeImage() {
+            const fileInput = document.getElementById('imageFile');
+            const file = fileInput.files[0];
+            const prompt = document.getElementById('analysisPrompt').value;
+            const maxTokens = document.getElementById('analysisTokens').value;
+
+            if (!file) {
+                showResult('analysisResult', 'Please select an image file', true);
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('prompt', prompt);
+            formData.append('max_new_tokens', maxTokens);
+
+            try {
+                const response = await fetch(`${API_BASE}/analyze-image`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('analysisResult', `Prompt: ${data.prompt}\n\nAnalysis: ${data.response}\n\nImage: ${data.image_info.filename} (${data.image_info.dimensions})`);
+                } else {
+                    showResult('analysisResult', `Error: ${data.detail}`, true);
+                }
+            } catch (error) {
+                showResult('analysisResult', `Network error: ${error.message}`, true);
+            }
+        }
+
+        async function listUploads() {
+            try {
+                const response = await fetch(`${API_BASE}/list-uploads`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    let listText = `Total uploads: ${data.count}\n\n`;
+                    if (data.uploads.length > 0) {
+                        data.uploads.forEach(upload => {
+                            const date = new Date(upload.uploaded_at * 1000);
+                            listText += `📁 ${upload.filename}\n   Size: ${upload.size} bytes\n   Uploaded: ${date.toLocaleString()}\n\n`;
+                        });
+                    } else {
+                        listText += 'No uploaded images found.';
+                    }
+                    showResult('uploadsList', listText);
+                } else {
+                    showResult('uploadsList', `Error: ${data.detail}`, true);
+                }
+            } catch (error) {
+                showResult('uploadsList', `Network error: ${error.message}`, true);
+            }
+        }
+
+        // Load uploads list on page load
+        window.onload = function() {
+            listUploads();
+        };
+    </script>
+</body>
+</html>
