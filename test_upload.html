@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MiniCPM-V-4_5 Image Upload Test</title>
+    <title>MiniCPM-V-4_5 Chat & OCR Test</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -80,21 +80,25 @@
 </head>
 <body>
     <div class="container">
-        <h1>🚀 MiniCPM-V-4_5 API Test</h1>
+        <h1>🚀 MiniCPM-V-4_5 Chat & OCR Test</h1>
         
-        <!-- Text Generation Section -->
+        <!-- Text Chat Section -->
         <div class="section">
-            <h2>📝 Text Generation</h2>
+            <h2>💬 Text Chat</h2>
             <div class="form-group">
-                <label for="textPrompt">Enter your prompt:</label>
-                <textarea id="textPrompt" rows="3" placeholder="Write a short story about a cat..."></textarea>
+                <label for="chatMessage">Enter your message:</label>
+                <textarea id="chatMessage" rows="3" placeholder="Hello! How are you today?"></textarea>
             </div>
             <div class="form-group">
-                <label for="maxTokens">Max tokens:</label>
-                <input type="number" id="maxTokens" value="200" min="1" max="1000">
+                <label for="chatTokens">Max tokens:</label>
+                <input type="number" id="chatTokens" value="200" min="1" max="1000">
             </div>
-            <button onclick="generateText()">Generate Text</button>
-            <div id="textResult" class="result" style="display: none;"></div>
+            <div class="form-group">
+                <label for="temperature">Temperature:</label>
+                <input type="number" id="temperature" value="0.7" min="0.1" max="2.0" step="0.1">
+            </div>
+            <button onclick="chatWithModel()">Send Message</button>
+            <div id="chatResult" class="result" style="display: none;"></div>
         </div>
 
         <!-- Image Upload Section -->
@@ -109,19 +113,19 @@
             <div id="uploadResult" class="result" style="display: none;"></div>
         </div>
 
-        <!-- Image Analysis Section -->
+        <!-- Image OCR Section -->
         <div class="section">
-            <h2>🔍 Image Analysis</h2>
+            <h2>🔍 Image OCR (Text Extraction)</h2>
             <div class="form-group">
-                <label for="analysisPrompt">Analysis prompt:</label>
-                <textarea id="analysisPrompt" rows="2" placeholder="Describe this image in detail..."></textarea>
+                <label for="ocrPrompt">OCR prompt:</label>
+                <textarea id="ocrPrompt" rows="2" placeholder="Extract all text from this image. Provide the text content clearly and accurately."></textarea>
             </div>
             <div class="form-group">
-                <label for="analysisTokens">Max tokens:</label>
-                <input type="number" id="analysisTokens" value="200" min="1" max="1000">
+                <label for="ocrTokens">Max tokens:</label>
+                <input type="number" id="ocrTokens" value="500" min="1" max="1000">
             </div>
-            <button onclick="analyzeImage()">Analyze Image</button>
-            <div id="analysisResult" class="result" style="display: none;"></div>
+            <button onclick="extractTextFromImage()">Extract Text</button>
+            <div id="ocrResult" class="result" style="display: none;"></div>
         </div>
 
         <!-- Uploaded Images List -->
@@ -158,36 +162,38 @@
             }
         }
 
-        async function generateText() {
-            const prompt = document.getElementById('textPrompt').value;
-            const maxTokens = document.getElementById('maxTokens').value;
+        async function chatWithModel() {
+            const message = document.getElementById('chatMessage').value;
+            const maxTokens = document.getElementById('chatTokens').value;
+            const temperature = document.getElementById('temperature').value;
 
-            if (!prompt.trim()) {
-                showResult('textResult', 'Please enter a prompt', true);
+            if (!message.trim()) {
+                showResult('chatResult', 'Please enter a message', true);
                 return;
             }
 
             try {
-                const response = await fetch(`${API_BASE}/generate`, {
+                const response = await fetch(`${API_BASE}/chat`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        prompt: prompt,
-                        max_new_tokens: parseInt(maxTokens)
+                        message: message,
+                        max_new_tokens: parseInt(maxTokens),
+                        temperature: parseFloat(temperature)
                     })
                 });
 
                 const data = await response.json();
                 
                 if (response.ok) {
-                    showResult('textResult', `Prompt: ${data.prompt}\n\nResponse: ${data.response}`);
+                    showResult('chatResult', `You: ${data.message}\n\nMiniCPM-V-4_5: ${data.response}`);
                 } else {
-                    showResult('textResult', `Error: ${data.detail}`, true);
+                    showResult('chatResult', `Error: ${data.detail}`, true);
                 }
             } catch (error) {
-                showResult('textResult', `Network error: ${error.message}`, true);
+                showResult('chatResult', `Network error: ${error.message}`, true);
             }
         }
 
@@ -222,14 +228,14 @@
             }
         }
 
-        async function analyzeImage() {
+        async function extractTextFromImage() {
             const fileInput = document.getElementById('imageFile');
             const file = fileInput.files[0];
-            const prompt = document.getElementById('analysisPrompt').value;
-            const maxTokens = document.getElementById('analysisTokens').value;
+            const prompt = document.getElementById('ocrPrompt').value;
+            const maxTokens = document.getElementById('ocrTokens').value;
 
             if (!file) {
-                showResult('analysisResult', 'Please select an image file', true);
+                showResult('ocrResult', 'Please select an image file', true);
                 return;
             }
 
@@ -239,7 +245,7 @@
             formData.append('max_new_tokens', maxTokens);
 
             try {
-                const response = await fetch(`${API_BASE}/analyze-image`, {
+                const response = await fetch(`${API_BASE}/ocr`, {
                     method: 'POST',
                     body: formData
                 });
@@ -247,12 +253,12 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    showResult('analysisResult', `Prompt: ${data.prompt}\n\nAnalysis: ${data.response}\n\nImage: ${data.image_info.filename} (${data.image_info.dimensions})`);
+                    showResult('ocrResult', `OCR Prompt: ${data.prompt}\n\nExtracted Text:\n${data.extracted_text}\n\nImage: ${data.image_info.filename} (${data.image_info.dimensions})\nConfidence: ${data.ocr_confidence}`);
                 } else {
-                    showResult('analysisResult', `Error: ${data.detail}`, true);
+                    showResult('ocrResult', `Error: ${data.detail}`, true);
                 }
             } catch (error) {
-                showResult('analysisResult', `Network error: ${error.message}`, true);
+                showResult('ocrResult', `Network error: ${error.message}`, true);
             }
         }
 

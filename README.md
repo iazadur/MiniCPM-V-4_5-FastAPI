@@ -1,12 +1,12 @@
-# 🚀 MiniCPM-V-4_5 FastAPI with Image Upload
+# 🚀 MiniCPM-V-4_5 Chat & OCR API
 
-A complete FastAPI application that serves the MiniCPM-V-4_5 model with image upload and analysis capabilities.
+A complete FastAPI application that serves the MiniCPM-V-4_5 model with text chat and image OCR capabilities.
 
 ## ✨ Features
 
-- **Text Generation**: Generate text using MiniCPM-V-4_5
+- **Text Chat**: Natural conversation with MiniCPM-V-4_5
+- **Image OCR**: Extract text from images using MiniCPM-V-4_5's vision capabilities
 - **Image Upload**: Upload and store images
-- **Image Analysis**: Analyze uploaded images with custom prompts
 - **REST API**: Full REST API with automatic documentation
 - **Web Interface**: HTML test interface for easy testing
 - **CORS Support**: Ready for frontend integration
@@ -49,37 +49,36 @@ A complete FastAPI application that serves the MiniCPM-V-4_5 model with image up
 | -------- | --------------------------- | --------------------------------- |
 | `GET`    | `/`                         | API information                   |
 | `GET`    | `/health`                   | Health check                      |
-| `POST`   | `/generate`                 | Generate text                     |
+| `POST`   | `/chat`                     | Text chat with MiniCPM-V-4_5      |
+| `POST`   | `/ocr`                      | Extract text from image (OCR)     |
 | `POST`   | `/upload-image`             | Upload image                      |
-| `POST`   | `/analyze-image`            | Analyze uploaded image            |
-| `POST`   | `/analyze-uploaded-image`   | Analyze previously uploaded image |
 | `GET`    | `/list-uploads`             | List all uploaded images          |
 | `DELETE` | `/delete-upload/{filename}` | Delete uploaded image             |
 
 ## 📝 Usage Examples
 
-### 1. Text Generation
+### 1. Text Chat
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/generate" \
+curl -X POST "http://127.0.0.1:8000/chat" \
   -H "Content-Type: application/json" \
-  -d '{"prompt": "Write a short story about a cat", "max_new_tokens": 100}'
+  -d '{"message": "Hello! How are you today?", "max_new_tokens": 200, "temperature": 0.7}'
 ```
 
-### 2. Image Upload
+### 2. Image OCR (Text Extraction)
+
+```bash
+curl -X POST "http://127.0.0.1:8000/ocr" \
+  -F "file=@your_image.jpg" \
+  -F "prompt=Extract all text from this image" \
+  -F "max_new_tokens=500"
+```
+
+### 3. Image Upload
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/upload-image" \
   -F "file=@your_image.jpg"
-```
-
-### 3. Image Analysis
-
-```bash
-curl -X POST "http://127.0.0.1:8000/analyze-image" \
-  -F "file=@your_image.jpg" \
-  -F "prompt=Describe this image in detail" \
-  -F "max_new_tokens=200"
 ```
 
 ## 🧪 Testing

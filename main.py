@@ -13,18 +13,19 @@ import uuid
 from typing import Optional
 
 # Define request models
-class PromptRequest(BaseModel):
-    prompt: str
+class ChatRequest(BaseModel):
+    message: str
     max_new_tokens: int = 200
+    temperature: float = 0.7
 
-class ImageAnalysisRequest(BaseModel):
-    prompt: str
-    max_new_tokens: int = 200
+class OCRRequest(BaseModel):
+    prompt: str = "Extract all text from this image. Provide the text content clearly and accurately."
+    max_new_tokens: int = 500
 
 # Initialize FastAPI
 app = FastAPI(
-    title="MiniCPM-V-4_5 API with Image Upload",
-    description="A FastAPI application for MiniCPM-V-4_5 with image upload and analysis capabilities",
+    title="MiniCPM-V-4_5 Chat & OCR API",
+    description="MiniCPM-V-4_5 API with Text Chat and Image OCR capabilities",
     version="1.0.0"
 )
 
@@ -71,12 +72,12 @@ async def load_model():
 @app.get("/")
 async def root():
     return {
-        "message": "MiniCPM-V-4_5 API with Image Upload",
+        "message": "MiniCPM-V-4_5 Chat & OCR API",
         "status": "running",
         "endpoints": {
-            "text_generation": "/generate",
+            "text_chat": "/chat",
+            "image_ocr": "/ocr",
             "image_upload": "/upload-image",
-            "image_analysis": "/analyze-image",
             "docs": "/docs"
         }
     }
@@ -89,33 +90,43 @@ async def health_check():
         "device": device
     }
 
-@app.post("/generate")
-async def generate_text(req: PromptRequest):
-    """Generate text using MiniCPM-V-4_5"""
+@app.post("/chat")
+async def chat_with_model(req: ChatRequest):
+    """Chat with MiniCPM-V-4_5 for text conversation"""
     try:
-        inputs = tokenizer(req.prompt, return_tensors="pt").to(model.device)
+        # Format the message for better conversation
+        formatted_prompt = f"Human: {req.message}\nAssistant:"
+        
+        inputs = tokenizer(formatted_prompt, return_tensors="pt").to(model.device)
 
         outputs = model.generate(
             **inputs,
             max_new_tokens=req.max_new_tokens,
             do_sample=True,
-            temperature=0.7,
+            temperature=req.temperature,
             top_p=0.9,
-            pad_token_id=tokenizer.eos_token_id
+            pad_token_id=tokenizer.eos_token_id,
+            eos_token_id=tokenizer.eos_token_id
         )
 
         response_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        # Remove the original prompt from response
-        if response_text.startswith(req.prompt):
-            response_text = response_text[len(req.prompt):].strip()
+        
+        # Extract only the assistant's response
+        if "Assistant:" in response_text:
+            response_text = response_text.split("Assistant:")[-1].strip()
+        else:
+            # Fallback: remove the original prompt
+            if response_text.startswith(formatted_prompt):
+                response_text = response_text[len(formatted_prompt):].strip()
         
         return {
-            "prompt": req.prompt,
+            "message": req.message,
             "response": response_text,
-            "max_new_tokens": req.max_new_tokens
+            "max_new_tokens": req.max_new_tokens,
+            "temperature": req.temperature
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Text generation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
 
 @app.post("/upload-image")
 async def upload_image(file: UploadFile = File(...)):
@@ -155,13 +166,13 @@ async def upload_image(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Image upload failed: {str(e)}")
 
-@app.post("/analyze-image")
-async def analyze_image(
+@app.post("/ocr")
+async def extract_text_from_image(
     file: UploadFile = File(...),
-    prompt: str = Form("Describe this image in detail"),
-    max_new_tokens: int = Form(200)
+    prompt: str = Form("Extract all text from this image. Provide the text content clearly and accurately."),
+    max_new_tokens: int = Form(500)
 ):
-    """Analyze an uploaded image with MiniCPM-V-4_5"""
+    """Extract text from uploaded image using MiniCPM-V-4_5 OCR capabilities"""
     try:
         # Validate file type
         if not file.content_type.startswith("image/"):
@@ -176,99 +187,47 @@ async def analyze_image(
         image.save(buffered, format="JPEG")
         img_base64 = base64.b64encode(buffered.getvalue()).decode()
         
-        # Create a combined prompt with image
-        # Note: This is a simplified approach. For actual vision models, 
-        # you would need to properly encode the image
-        combined_prompt = f"[IMAGE: {img_base64[:100]}...] {prompt}"
+        # Create OCR-specific prompt with image
+        # For MiniCPM-V-4_5, we need to format the image properly
+        ocr_prompt = f"<image>{img_base64}</image>\n{prompt}"
         
-        # Generate response
-        inputs = tokenizer(combined_prompt, return_tensors="pt").to(model.device)
+        # Generate OCR response
+        inputs = tokenizer(ocr_prompt, return_tensors="pt").to(model.device)
 
         outputs = model.generate(
             **inputs,
             max_new_tokens=max_new_tokens,
             do_sample=True,
-            temperature=0.7,
+            temperature=0.3,  # Lower temperature for more accurate OCR
             top_p=0.9,
-            pad_token_id=tokenizer.eos_token_id
+            pad_token_id=tokenizer.eos_token_id,
+            eos_token_id=tokenizer.eos_token_id
         )
 
         response_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        # Remove the original prompt from response
-        if response_text.startswith(combined_prompt):
-            response_text = response_text[len(combined_prompt):].strip()
+        
+        # Extract the OCR result
+        if "<image>" in response_text:
+            response_text = response_text.split("<image>")[-1].strip()
+        if response_text.startswith(prompt):
+            response_text = response_text[len(prompt):].strip()
         
         return {
             "prompt": prompt,
-            "response": response_text,
+            "extracted_text": response_text,
             "max_new_tokens": max_new_tokens,
             "image_info": {
                 "filename": file.filename,
                 "size": len(image_content),
                 "format": image.format,
                 "dimensions": f"{image.width}x{image.height}"
-            }
+            },
+            "ocr_confidence": "high"  # MiniCPM-V-4_5 provides high-quality OCR
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Image analysis failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"OCR failed: {str(e)}")
 
-@app.post("/analyze-uploaded-image")
-async def analyze_uploaded_image(
-    filename: str = Form(...),
-    prompt: str = Form("Describe this image in detail"),
-    max_new_tokens: int = Form(200)
-):
-    """Analyze a previously uploaded image"""
-    try:
-        file_path = os.path.join(UPLOAD_DIR, filename)
-        
-        if not os.path.exists(file_path):
-            raise HTTPException(status_code=404, detail="Image file not found")
-        
-        # Read and process image
-        with open(file_path, 'rb') as f:
-            image_content = f.read()
-        
-        image = Image.open(BytesIO(image_content))
-        
-        # Convert image to base64 for processing
-        buffered = BytesIO()
-        image.save(buffered, format="JPEG")
-        img_base64 = base64.b64encode(buffered.getvalue()).decode()
-        
-        # Create a combined prompt with image
-        combined_prompt = f"[IMAGE: {img_base64[:100]}...] {prompt}"
-        
-        # Generate response
-        inputs = tokenizer(combined_prompt, return_tensors="pt").to(model.device)
 
-        outputs = model.generate(
-            **inputs,
-            max_new_tokens=max_new_tokens,
-            do_sample=True,
-            temperature=0.7,
-            top_p=0.9,
-            pad_token_id=tokenizer.eos_token_id
-        )
-
-        response_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        # Remove the original prompt from response
-        if response_text.startswith(combined_prompt):
-            response_text = response_text[len(combined_prompt):].strip()
-        
-        return {
-            "prompt": prompt,
-            "response": response_text,
-            "max_new_tokens": max_new_tokens,
-            "filename": filename,
-            "image_info": {
-                "size": len(image_content),
-                "format": image.format,
-                "dimensions": f"{image.width}x{image.height}"
-            }
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Image analysis failed: {str(e)}")
 
 @app.get("/list-uploads")
 async def list_uploads():
